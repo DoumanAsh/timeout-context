@@ -1,0 +1,43 @@
+[package]
+name = "timeout-context"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85.0"
+description = "Contextual timeout utilities to handle timeouts across your applications"
+readme = "README.md"
+repository = "https://github.com/DoumanAsh/timeout-context"
+license = "BSL-1.0"
+keywords = ["http", "grpc", "timeout", "client_timeout"]
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+]
+
+[dependencies.bytes]
+version = "1"
+optional = true
+
+[dependencies.http]
+version = "1"
+optional = true
+
+[dependencies.tokio]
+version = "1"
+optional = true
+features = ["time"]
+
+[dependencies.tonic014]
+package = "tonic"
+default-features = false
+version = "0.14"
+optional = true
+
+[features]
+default = []
+std = []
+bytes = ["dep:bytes"]
+tokio = ["dep:tokio"]
+http = ["dep:http", "bytes"]
+tonic014 = ["dep:tonic014", "tokio", "bytes"]

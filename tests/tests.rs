@@ -1,0 +1,33 @@
+use timeout_context::{time, parse_timeout, ParseError};
+
+#[test]
+fn should_parse_valid_timestamp() {
+    let data = [
+        (time::Duration::from_secs(13), "13S"),
+        (time::Duration::from_millis(13), "13m"),
+        (time::Duration::from_secs(13 * 60), "13M"),
+        (time::Duration::from_secs(13 * 60 * 60), "13H"),
+        (time::Duration::from_nanos(13), "13n"),
+        (time::Duration::from_micros(13), "13u"),
+    ];
+
+    for (expected, input) in data {
+        let result = parse_timeout(input.as_bytes()).expect("to parse");
+        assert_eq!(result, expected, "Expected {:?} but got {:?}", expected, result);
+    }
+}
+
+#[test]
+fn should_not_parse_invalid_timestamp() {
+    let data = [
+        (ParseError::MissingValue, ""),
+        (ParseError::MissingValue, "1"),
+        (ParseError::InvalidUnit('g'), "1g"),
+        (ParseError::InvalidValue("-1"), "-1M"),
+    ];
+
+    for (expected, input) in data {
+        let result = parse_timeout(input.as_bytes()).expect_err("not to parse");
+        assert_eq!(result, expected, "Expected {:?} but got {:?}", expected, result);
+    }
+}

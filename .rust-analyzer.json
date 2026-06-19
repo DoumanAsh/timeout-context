@@ -1,0 +1,9 @@
+{
+    "cargo": {
+        "features": [
+            "http",
+            "tonic014",
+            "std"
+        ]
+    }
+}
