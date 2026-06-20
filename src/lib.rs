@@ -85,20 +85,20 @@ pub const fn parse_timeout<'a>(text: &'a [u8]) -> Result<time::Duration, ParseEr
 ///Interface to propagate [Timeout]
 pub trait TimeoutPropagation {
     ///Provides way to insert `value` under specified `key` which can be header name or whatever destination supports
-    fn set_timeout(&mut self, key: &str, value: time::Duration);
+    fn set_timeout_ctx(&mut self, key: &str, value: time::Duration);
     ///Provides access to the raw bytes under `key`, which expected to be valid utf-8 string if it is timeout header.
     fn get_header_value(&self, key: &str) -> Option<&[u8]>;
     #[inline]
     ///Access header value via [TimeoutPropagation::get_header_value] and attempts to parse it returning timeout value on success
-    fn get_timeout(&self, key: &str) -> Option<time::Duration> {
+    fn get_timeout_ctx(&self, key: &str) -> Option<time::Duration> {
         self.get_header_value(key).and_then(|value| parse_timeout(value).ok())
     }
 }
 
 impl TimeoutPropagation for &mut dyn TimeoutPropagation {
     #[inline]
-    fn set_timeout(&mut self, key: &str, value: time::Duration) {
-        TimeoutPropagation::set_timeout(&mut **self, key, value)
+    fn set_timeout_ctx(&mut self, key: &str, value: time::Duration) {
+        TimeoutPropagation::set_timeout_ctx(&mut **self, key, value)
     }
 
     #[inline]

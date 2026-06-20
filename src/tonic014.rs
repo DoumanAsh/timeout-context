@@ -8,7 +8,7 @@ use core::fmt;
 
 impl TimeoutPropagation for MetadataMap {
     #[inline]
-    fn set_timeout(&mut self, key: &str, value: time::Duration) {
+    fn set_timeout_ctx(&mut self, key: &str, value: time::Duration) {
         let mut out = BytesWriter::new();
 
         let key: metadata::AsciiMetadataKey = key.parse().expect("Timestamp propagation header name is always valid");
@@ -25,8 +25,8 @@ impl TimeoutPropagation for MetadataMap {
 
 impl<T> TimeoutPropagation for tonic014::Request<T> {
     #[inline]
-    fn set_timeout(&mut self, key: &str, value: time::Duration) {
-        TimeoutPropagation::set_timeout(self.metadata_mut(), key, value)
+    fn set_timeout_ctx(&mut self, key: &str, value: time::Duration) {
+        TimeoutPropagation::set_timeout_ctx(self.metadata_mut(), key, value)
     }
     #[inline]
     fn get_header_value(&self, key: &str) -> Option<&[u8]> {

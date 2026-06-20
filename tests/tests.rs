@@ -31,3 +31,43 @@ fn should_not_parse_invalid_timestamp() {
         assert_eq!(result, expected, "Expected {:?} but got {:?}", expected, result);
     }
 }
+
+#[cfg(feature = "http")]
+#[test]
+fn should_pass_timeout_via_http1_headers() {
+    use http::Request;
+    use timeout_context::TimeoutPropagation;
+
+    use core::time;
+
+    const HEADER: &str = "x-request-deadline";
+    const TIMEOUT: time::Duration = time::Duration::from_millis(150);
+
+    let mut request = Request::new(());
+    let result = request.get_header_value(HEADER);
+    assert!(result.is_none(), "No header should be availalbe yet");
+    request.set_timeout_ctx(HEADER, TIMEOUT);
+
+    let result = request.get_timeout_ctx(HEADER).expect("to extract set timeout");
+    assert_eq!(result, TIMEOUT);
+}
+
+#[cfg(feature = "tonic014")]
+#[test]
+fn should_pass_timeout_via_tonic014_headers() {
+    use tonic014::Request;
+    use timeout_context::TimeoutPropagation;
+
+    use core::time;
+
+    const HEADER: &str = "x-request-deadline";
+    const TIMEOUT: time::Duration = time::Duration::from_millis(150);
+
+    let mut request = Request::new(());
+    let result = request.get_header_value(HEADER);
+    assert!(result.is_none(), "No header should be availalbe yet");
+    request.set_timeout_ctx(HEADER, TIMEOUT);
+
+    let result = request.get_timeout_ctx(HEADER).expect("to extract set timeout");
+    assert_eq!(result, TIMEOUT);
+}

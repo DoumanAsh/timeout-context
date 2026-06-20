@@ -8,7 +8,7 @@ use core::fmt;
 
 impl TimeoutPropagation for HeaderMap {
     #[inline]
-    fn set_timeout(&mut self, key: &str, value: time::Duration) {
+    fn set_timeout_ctx(&mut self, key: &str, value: time::Duration) {
         let mut out = BytesWriter::new();
 
         let key = http::HeaderName::from_bytes(key.as_bytes()).expect("Timestamp propagation header name is always valid");
@@ -25,8 +25,8 @@ impl TimeoutPropagation for HeaderMap {
 
 impl<T> TimeoutPropagation for http::Request<T> {
     #[inline]
-    fn set_timeout(&mut self, key: &str, value: time::Duration) {
-        TimeoutPropagation::set_timeout(self.headers_mut(), key, value)
+    fn set_timeout_ctx(&mut self, key: &str, value: time::Duration) {
+        TimeoutPropagation::set_timeout_ctx(self.headers_mut(), key, value)
     }
     #[inline]
     fn get_header_value(&self, key: &str) -> Option<&[u8]> {
