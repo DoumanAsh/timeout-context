@@ -7,7 +7,9 @@
 #![warn(missing_docs)]
 #![allow(clippy::style)]
 
-use core::{fmt, str, slice};
+use core::pin::Pin;
+use core::future::Future;
+use core::{task, fmt, str, slice};
 
 pub mod time;
 #[cfg(feature = "bytes")]
@@ -135,6 +137,22 @@ impl<I: time::Instant> Timeout<I> {
     pub fn get_remaining_timeout(&self) -> time::Duration {
         self.timeout.saturating_sub(self.started_at.elapsed())
     }
+
+    #[cfg(feature = "tokio")]
+    #[inline]
+    ///Returns tokio timeout future that runs for the duration of remaining time in self
+    pub fn get_tokio_timer_task(&self) -> tokio::time::Sleep {
+        tokio::time::sleep(self.get_remaining_timeout())
+    }
+
+    #[cfg(feature = "tokio")]
+    #[inline]
+    ///Creates `task` wrapped into [TimeoutFuture] running tokio runtime.
+    pub fn run_tokio<F: Future>(&self, task: F) -> TimeoutFuture<tokio::time::Sleep, F> {
+        let duration = self.get_remaining_timeout();
+        let sleep = tokio::time::sleep(duration);
+        TimeoutFuture::new(duration, sleep, task)
+    }
 }
 
 #[cfg(feature = "std")]
@@ -165,5 +183,59 @@ impl<I: time::Instant> From<time::Duration> for Timeout<I> {
     #[inline(always)]
     fn from(value: time::Duration) -> Self {
         Self::new(I::now(), value)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+///Expiration error of [TimeoutFuture]
+pub struct TimeoutExpired(time::Duration);
+
+impl fmt::Display for TimeoutExpired {
+    #[inline]
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_fmt(format_args!("Task expired after {:?}", self.0))
+    }
+}
+
+///Wrapper future that requires inner future to be completed before sleep future is done.
+pub struct TimeoutFuture<S, T> {
+    duration: time::Duration,
+    sleep: S,
+    inner: T,
+}
+
+impl<S: Future<Output = ()>, T: Future> TimeoutFuture<S, T> {
+    #[inline]
+    ///Wraps `T` to be executed within timeout future `sleep`
+    ///
+    ///`duration` serves only informational purpose.
+    pub fn new(duration: time::Duration, sleep: S, inner: T) -> Self {
+        Self {
+            duration,
+            sleep,
+            inner
+        }
+    }
+
+    #[inline]
+    ///Unwraps timeout task, returning underlying task.
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+}
+
+impl<S: Future<Output = ()>, T: Future> Future for TimeoutFuture<S, T> {
+    type Output = Result<T::Output, TimeoutExpired>;
+    #[inline]
+    fn poll(self: Pin<&mut Self>, ctx: &mut task::Context<'_>) -> task::Poll<Self::Output> {
+        let (duration, sleep, inner) = unsafe {
+            let this = self.get_unchecked_mut();
+            (this.duration, Pin::new_unchecked(&mut this.sleep), Pin::new_unchecked(&mut this.inner))
+        };
+
+        match Future::poll(inner, ctx) {
+            task::Poll::Ready(result) => task::Poll::Ready(Ok(result)),
+            task::Poll::Pending => Future::poll(sleep, ctx).map(|_| Err(TimeoutExpired(duration))),
+        }
     }
 }
