@@ -71,3 +71,21 @@ fn should_pass_timeout_via_tonic014_headers() {
     let result = request.get_timeout_ctx(HEADER).expect("to extract set timeout");
     assert_eq!(result, TIMEOUT);
 }
+
+#[cfg(feature = "tokio")]
+#[tokio::test]
+async fn should_expire_on_time_tokio() {
+    const TIMEOUT: time::Duration = time::Duration::from_millis(150);
+
+    tokio::time::pause();
+
+    let timeout = timeout_context::Timeout::new(tokio::time::Instant::now(), TIMEOUT);
+    let fut = timeout.run_tokio(core::future::ready(()));
+
+    fut.await.expect("not expired to success");
+
+    let fut = timeout.run_tokio(core::future::pending::<()>());
+    tokio::time::advance(TIMEOUT).await;
+
+    fut.await.expect_err("should expire");
+}
