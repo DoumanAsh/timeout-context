@@ -1,4 +1,4 @@
-use timeout_context::{time, parse_timeout, ParseError};
+use timeout_context::{time, parse_timeout, try_parse_timeout, ParseError};
 
 #[test]
 fn should_parse_valid_timestamp() {
@@ -12,7 +12,7 @@ fn should_parse_valid_timestamp() {
     ];
 
     for (expected, input) in data {
-        let result = parse_timeout(input.as_bytes()).expect("to parse");
+        let result = parse_timeout(input.as_bytes());
         assert_eq!(result, expected, "Expected {:?} but got {:?}", expected, result);
     }
 }
@@ -27,7 +27,7 @@ fn should_not_parse_invalid_timestamp() {
     ];
 
     for (expected, input) in data {
-        let result = parse_timeout(input.as_bytes()).expect_err("not to parse");
+        let result = try_parse_timeout(input.as_bytes()).expect_err("not to parse");
         assert_eq!(result, expected, "Expected {:?} but got {:?}", expected, result);
     }
 }

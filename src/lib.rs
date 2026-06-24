@@ -40,10 +40,22 @@ impl<'a> ParseError<'a> {
     }
 }
 
+impl fmt::Display for ParseError<'_> {
+    #[inline]
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidUtf8 => fmt.write_str("Input is not valid utf-8"),
+            Self::MissingValue => fmt.write_str("No timeout value is found"),
+            Self::InvalidUnit(ch) => fmt.write_fmt(format_args!("Unit '{ch}' is invalid")),
+            Self::InvalidValue(value) => fmt.write_fmt(format_args!("Value '{value}' is not valid integer")),
+        }
+    }
+}
+
 ///Parses timeout expression, returning duration on success, otherwise error.
 ///
 ///Follows grpc semantics on textual representation of timeout: <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md>
-pub const fn parse_timeout<'a>(text: &'a [u8]) -> Result<time::Duration, ParseError<'a>> {
+pub const fn try_parse_timeout<'a>(text: &'a [u8]) -> Result<time::Duration, ParseError<'a>> {
     const HOUR_SECONDS: u64 = 60 * 60;
 
     let split_idx = text.len().saturating_sub(1);
@@ -83,6 +95,19 @@ pub const fn parse_timeout<'a>(text: &'a [u8]) -> Result<time::Duration, ParseEr
     Ok(result)
 }
 
+#[inline]
+///Parses timeout expression returning duration, or panics in case of error
+pub const fn parse_timeout(text: &[u8]) -> time::Duration {
+    match try_parse_timeout(text) {
+        Ok(duration) => duration,
+        Err(error) => match error {
+            ParseError::InvalidUtf8 => panic!("Input is not valid utf-8"),
+            ParseError::MissingValue => panic!("No timeout value is found"),
+            ParseError::InvalidUnit(_) => panic!("Timeout's unit is invalid"),
+            ParseError::InvalidValue(_) => panic!("Timeout's value is not valid integer"),
+        }
+    }
+}
 
 ///Interface to propagate [Timeout]
 pub trait TimeoutPropagation {
@@ -93,7 +118,7 @@ pub trait TimeoutPropagation {
     #[inline]
     ///Access header value via [TimeoutPropagation::get_header_value] and attempts to parse it returning timeout value on success
     fn get_timeout_ctx(&self, key: &str) -> Option<time::Duration> {
-        self.get_header_value(key).and_then(|value| parse_timeout(value).ok())
+        self.get_header_value(key).and_then(|value| try_parse_timeout(value).ok())
     }
 }
 
