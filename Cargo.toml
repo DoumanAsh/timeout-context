@@ -1,6 +1,6 @@
 [package]
 name = "timeout-context"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.85.0"
 description = "Contextual timeout utilities to handle timeouts across your applications"
@@ -45,3 +45,6 @@ bytes = ["dep:bytes"]
 tokio = ["dep:tokio"]
 http = ["dep:http", "bytes"]
 tonic014 = ["dep:tonic014", "tokio", "bytes"]
+
+[package.metadata.docs.rs]
+features = ["tokio", "http", "tonic014", "std"]
