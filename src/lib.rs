@@ -1,8 +1,4 @@
-//!Contextual timeout utilities to handle timeouts across your applications
-//!
-//!This crate provides simple utility to provide uniform timeout handling for requests, and propagation utilities.
-//!It uses [grpc semantics](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md) to parse timeout value
-
+#![doc = include_str!("../README.md")]
 #![no_std]
 #![warn(missing_docs)]
 #![allow(clippy::style)]
@@ -18,6 +14,9 @@ mod bytes;
 mod http;
 #[cfg(feature = "tonic014")]
 mod tonic014;
+
+///Header name used to store timeout value within gRPC request's headers
+pub const GRPC_HEADER_NAME: &str = "grpc-timeout";
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 ///Possible parsing errors
@@ -152,6 +151,23 @@ impl<I: time::Instant> Timeout<I> {
     }
 
     #[inline]
+    ///Creates new timeout with at `started_at` time, sourcing `timeout` value from `source` if
+    ///available, otherwise defaulting to`default_timeout`.
+    pub fn new_from(started_at: I, header_name: &str, source: &impl TimeoutPropagation, default_timeout: time::Duration) -> Self {
+        let timeout = source.get_timeout_ctx(header_name).unwrap_or(default_timeout);
+        Self::new(started_at, timeout)
+    }
+
+    #[inline(always)]
+    ///Creates new timeout with at `started_at` time, sourcing `timeout` value from `source` if
+    ///available, otherwise defaulting to`default_timeout`.
+    ///
+    ///This function is the same as [Timeout::new_from] except passing `grpc-timeout` as `header_name`
+    pub fn new_grpc_from(started_at: I, source: &impl TimeoutPropagation, default_timeout: time::Duration) -> Self {
+        Self::new_from(started_at, GRPC_HEADER_NAME, source, default_timeout)
+    }
+
+    #[inline]
     ///Returns timeout value
     pub const fn timeout(&self) -> time::Duration {
         self.timeout
@@ -166,6 +182,8 @@ impl<I: time::Instant> Timeout<I> {
     #[cfg(feature = "tokio")]
     #[inline]
     ///Returns tokio timeout future that runs for the duration of remaining time in self
+    ///
+    ///Requires `tokio` feature
     pub fn get_tokio_timer_task(&self) -> tokio::time::Sleep {
         tokio::time::sleep(self.get_remaining_timeout())
     }
@@ -173,6 +191,8 @@ impl<I: time::Instant> Timeout<I> {
     #[cfg(feature = "tokio")]
     #[inline]
     ///Creates `task` wrapped into [TimeoutFuture] running tokio runtime.
+    ///
+    ///Requires `tokio` feature
     pub fn run_tokio<F: Future>(&self, task: F) -> TimeoutFuture<tokio::time::Sleep, F> {
         let duration = self.get_remaining_timeout();
         let sleep = tokio::time::sleep(duration);
